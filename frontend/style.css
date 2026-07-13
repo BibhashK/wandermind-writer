@@ -844,3 +844,65 @@ details p {
 @media (max-width: 640px) {
   .step { grid-template-columns: 1fr; gap: 12px; }
 }
+
+/* --------------------------------------------------------------------------
+   LINKS
+   Default browser blue is unreadable on this background. Every link in the app
+   gets the cyan accent, with a visible underline so it reads as a link even
+   before you notice the colour.
+   -------------------------------------------------------------------------- */
+a {
+  color: var(--stage-1);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.4);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+a:hover {
+  color: #7ce8f7;
+  border-bottom-color: currentColor;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--stage-1);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The "Guide" button in the header is a button, not a body link. */
+.back-link,
+.back-link:hover {
+  border-bottom: none;
+}
+
+/* The setup-guide nudge — make it a proper callout, not a stray sentence. */
+.settings-help {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 12px 16px;
+  margin-bottom: 22px;
+  background: rgba(34, 211, 238, 0.06);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 9px;
+}
+
+/* Field hints sit quietly under their input. */
+.field-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 5px;
+  font-weight: 400;
+}
+
+.field-hint a {
+  color: var(--stage-1);
+  border-bottom-color: transparent;
+}
+
+.field-hint a:hover {
+  border-bottom-color: currentColor;
+}
+
+/* The CTA at the foot of the guide is a button — no underline. */
+.cta, .cta:hover { border-bottom: none; }
