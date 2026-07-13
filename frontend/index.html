@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandermind Writer</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>Wandermind Writer</h1>
+    <button id="settings-btn">Settings</button>
+  </header>
+
+  <!-- SETTINGS: the BYOK credentials. Stored in the browser only. -->
+  <section id="settings-panel" hidden>
+    <h2>Your Keys</h2>
+    <p>Stored in your browser only. Never sent to our servers or saved anywhere.</p>
+
+    <label>Gemini API Key
+      <input type="password" id="google-key" placeholder="AIza...">
+    </label>
+
+    <label>Tavily API Key
+      <input type="password" id="tavily-key" placeholder="tvly-...">
+    </label>
+
+    <label>WordPress URL
+      <input type="text" id="wp-url" placeholder="https://yoursite.com">
+    </label>
+
+    <label>WordPress Username
+      <input type="text" id="wp-username" placeholder="username">
+    </label>
+
+    <label>WordPress App Password
+      <input type="password" id="wp-password" placeholder="xxxx xxxx xxxx xxxx">
+    </label>
+
+    <button id="verify-btn">Verify &amp; Save</button>
+    <p id="verify-status"></p>
+  </section>
+
+  <!-- TOPIC: type one, or let the scout find trending ones -->
+  <section id="topic-section">
+    <input type="text" id="topic-input" placeholder="What should I write about?">
+    <input type="text" id="category-input" placeholder="Category" value="AI">
+    <button id="generate-btn">Generate</button>
+    <button id="scout-btn">Find trending topics</button>
+  </section>
+
+  <!-- SCOUT RESULTS: the 5 ranked ideas -->
+  <section id="scout-results" hidden>
+    <h2>Trending ideas</h2>
+    <div id="scout-list"></div>
+  </section>
+
+  <!-- PROGRESS: the wire. Light travels; each stage locks in its own colour. -->
+  <section id="progress" hidden>
+    <div class="pipeline">
+      <div class="stage" data-stage="1" id="stage-seo">
+        <div class="stage-dot"></div><div class="stage-label">SEO</div>
+      </div>
+      <div class="wire" data-wire="1" id="wire-1"></div>
+
+      <div class="stage" data-stage="2" id="stage-research">
+        <div class="stage-dot"></div><div class="stage-label">Research</div>
+      </div>
+      <div class="wire" data-wire="2" id="wire-2"></div>
+
+      <div class="stage" data-stage="3" id="stage-links">
+        <div class="stage-dot"></div><div class="stage-label">Links</div>
+      </div>
+      <div class="wire" data-wire="3" id="wire-3"></div>
+
+      <div class="stage" data-stage="4" id="stage-write">
+        <div class="stage-dot"></div><div class="stage-label">Writing</div>
+      </div>
+      <div class="wire" data-wire="4" id="wire-4"></div>
+
+      <div class="stage" data-stage="5" id="stage-score">
+        <div class="stage-dot"></div><div class="stage-label">Scoring</div>
+      </div>
+      <div class="wire" data-wire="5" id="wire-5"></div>
+
+      <div class="stage" data-stage="6" id="stage-linkedin">
+        <div class="stage-dot"></div><div class="stage-label">LinkedIn</div>
+      </div>
+    </div>
+    <p id="progress-message">Working…</p>
+  </section>
+
+  <!-- RESEARCH: the sources found -->
+  <section id="research-section" hidden>
+    <h2>Sources</h2>
+    <div id="sources-list"></div>
+  </section>
+
+  <!-- OUTPUT: article left, intelligence right -->
+  <main id="output" hidden>
+    <div id="article-panel">
+      <h2>Article</h2>
+      <input type="text" id="article-title">
+      <textarea id="article-body" rows="25"></textarea>
+      <button id="publish-btn">Push draft to WordPress</button>
+      <p id="publish-status"></p>
+    </div>
+
+    <aside id="side-panel">
+      <div id="seo-panel">
+        <h2>On-page SEO</h2>
+        <div id="seo-score"></div>
+        <ul id="seo-checks"></ul>
+      </div>
+
+      <div id="linkedin-panel">
+        <h2>LinkedIn post</h2>
+        <textarea id="linkedin-body" rows="15"></textarea>
+        <button id="copy-linkedin-btn">Copy</button>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

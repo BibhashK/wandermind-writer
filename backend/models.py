@@ -1,48 +1,49 @@
 """
-Configuration models.
+Request models.
 
-Pydantic models define the SHAPE of data coming into the API. FastAPI uses them
-to validate every request automatically — if a user sends a malformed payload,
-FastAPI rejects it before your code ever runs. This is free input validation.
+Pydantic validates every incoming request automatically. A malformed payload is
+rejected before our code runs — free input validation.
 
-SECURITY NOTE: These objects hold user credentials in memory for the duration of
-a single request. They are never written to disk, never logged, never persisted.
+SECURITY: these objects hold credentials in memory for one request only. Never
+written to disk, never logged, never persisted.
 """
 
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
 class UserConfig(BaseModel):
-    """The credentials a user brings (BYOK — Bring Your Own Keys)."""
+    """The keys a user brings (BYOK — Bring Your Own Keys)."""
 
     google_api_key: str = Field(..., description="Google Gemini API key")
     tavily_api_key: str = Field(..., description="Tavily search API key")
-    wp_url: str = Field(..., description="WordPress site URL, e.g. https://example.com")
+    wp_url: str = Field(..., description="WordPress site URL")
     wp_username: str = Field(..., description="WordPress username")
     wp_app_password: str = Field(..., description="WordPress application password")
 
     def clean_wp_url(self) -> str:
-        """Strip any trailing slash so we can safely append API paths."""
+        """Strip a trailing slash so we can safely append API paths."""
         return self.wp_url.rstrip("/")
 
 
-class GenerateRequest(BaseModel):
-    """A request to generate an article."""
+# "fast" leads with Flash-Lite: quickest, still Pro-derived.
+# "quality" leads with 3.5 Flash: better factual grounding and prose.
+SpeedMode = Literal["fast", "quality"]
 
+
+class GenerateRequest(BaseModel):
     config: UserConfig
-    topic: str = Field(..., min_length=3, description="What to write about")
-    category: str = Field(default="AI", description="WordPress category name")
+    topic: str = Field(..., min_length=3)
+    category: str = Field(default="AI")
+    mode: SpeedMode = Field(default="fast")
 
 
 class ScoutRequest(BaseModel):
-    """A request to scout trending topics."""
-
     config: UserConfig
+    mode: SpeedMode = Field(default="fast")
 
 
 class PublishRequest(BaseModel):
-    """A request to push a finished article to WordPress as a draft."""
-
     config: UserConfig
     title: str
     body_markdown: str

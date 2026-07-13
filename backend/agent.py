@@ -1,23 +1,27 @@
 """
-The LangGraph agent, refactored for multi-user use.
+The agent. Config is passed in, so it works for many users at once.
 
-KEY CHANGE FROM THE PERSONAL VERSION:
-    Config is PASSED IN, not read from a .env file. Every function that needs a
-    credential receives it as an argument. This is what makes the agent
-    multi-user: two people can call it simultaneously with different keys, and
-    neither request can see the other's config.
+SPEED:
+    Two things make this fast.
 
-    (In engineering terms this is "dependency injection". It also makes the code
-    testable — you can pass fake keys in a test without touching the environment.)
+    1. MODEL TIERS. "Fast" leads with Flash-Lite (~381 tok/s, Pro-derived, free
+       tier). "Quality" leads with 3.5 Flash (beats 3.1 Pro on agentic
+       benchmarks). Both fall back to a shared stable model so a busy tier never
+       kills the run.
+
+    2. PARALLELISM. The searches all fire at once instead of one after another,
+       and SEO metadata is generated while research is still running. Sequential
+       code waits; concurrent code doesn't.
 
 SECURITY:
-    Credentials exist only in memory, only for the life of one request. They are
-    never written to disk, never logged, never persisted anywhere.
+    Credentials live in memory for one request. Never written to disk, never
+    logged, never persisted.
 """
 
 import json
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -27,78 +31,92 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 log = logging.getLogger(__name__)
 
-# Models are tried in this order. Each has its own free-tier quota, so falling
-# back across them routes around a single overloaded or exhausted model.
-MODEL_FALLBACK_CHAIN = [
-    "gemma-4-31b-it",
-    "gemini-2.0-flash",
-    "gemini-flash-latest",
-]
 
-RETRYABLE_ERRORS = ("503", "UNAVAILABLE", "overloaded", "RESOURCE_EXHAUSTED", "429")
+# =============================================================================
+#  MODEL TIERS
+# =============================================================================
+# Each chain is tried in order. If one model is overloaded or rate-limited, we
+# retry it briefly, then fall back to the next.
+#
+# NOTE: gemini-2.0-flash and 2.0-flash-lite were SHUT DOWN on 1 June 2026.
+# Don't put them back in these lists — requests to them 404.
+
+MODEL_CHAINS = {
+    # Flash-Lite is the fastest tier and, unusually, is derived from Pro rather
+    # than a smaller Flash base — so it's quick without being dumb. Ideal for
+    # our long, highly-structured prompts.
+    "fast": [
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+    ],
+    # 3.5 Flash is the current default flagship — it beats 3.1 Pro on agentic
+    # benchmarks while running several times faster. Better factual grounding
+    # than Flash-Lite, which matters when we're citing sources.
+    "quality": [
+        "gemini-3.5-flash",
+        "gemini-3-flash",
+        "gemini-2.5-flash",
+    ],
+}
+
+RETRYABLE = (
+    "503", "500", "502", "504",              # transient server errors
+    "UNAVAILABLE", "INTERNAL", "overloaded",
+    "RESOURCE_EXHAUSTED", "429",             # rate limits
+)
 
 
 class AgentError(Exception):
-    """Raised when the agent fails in a way the user should see."""
+    """A failure the user should see, phrased for a human."""
 
 
 # =============================================================================
-#  LOW-LEVEL CLIENTS
+#  LLM
 # =============================================================================
 
-def call_llm(prompt: str, api_key: str, temperature: float = 0.7) -> str:
-    """
-    Send a prompt to the LLM and return plain text.
-
-    Retries on transient errors, then falls back to the next model in the chain.
-    The API key is passed in by the caller — never read from the environment.
-    """
+def call_llm(prompt: str, api_key: str, mode: str = "fast", temperature: float = 0.7) -> str:
+    """Send a prompt to the LLM. Retries transient errors, then falls back a tier."""
+    chain = MODEL_CHAINS.get(mode, MODEL_CHAINS["fast"])
     last_error: Exception | None = None
 
-    for model_name in MODEL_FALLBACK_CHAIN:
+    for model_name in chain:
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             temperature=temperature,
             google_api_key=api_key,
         )
 
-        for attempt in range(3):
+        for attempt in range(2):        # 2 tries, then move to the next model
             try:
                 response = llm.invoke(prompt)
                 content = response.content
 
-                # Some models return a list of content parts, not a plain string.
+                # Some models return a list of parts rather than a plain string.
                 if isinstance(content, list):
                     content = "".join(
-                        part.get("text", "") if isinstance(part, dict) else str(part)
-                        for part in content
+                        p.get("text", "") if isinstance(p, dict) else str(p)
+                        for p in content
                     )
+                log.info("wrote with %s", model_name)
                 return content
 
             except Exception as e:
                 last_error = e
-                if any(marker in str(e) for marker in RETRYABLE_ERRORS):
-                    wait = (attempt + 1) * 4
-                    log.warning("%s busy (attempt %d). Waiting %ds", model_name, attempt + 1, wait)
-                    time.sleep(wait)
+                if any(m in str(e) for m in RETRYABLE):
+                    time.sleep(3 * (attempt + 1))
                 else:
-                    # A real error (bad key, malformed request) — don't mask it.
+                    # A real error (bad key, bad request) — surface it, don't mask.
                     raise AgentError(f"Model error: {e}") from e
 
     raise AgentError(
-        "All models are busy or your quota is exhausted. Try again in a few minutes. "
-        f"(last error: {last_error})"
+        "Every model is busy or your quota is used up. Wait a few minutes and "
+        f"try again. (last error: {last_error})"
     )
 
 
 def parse_json_response(raw: str):
-    """
-    Parse JSON from an LLM response.
-
-    Models often wrap JSON in ```json fences despite being told not to, so we
-    strip those before parsing. Raises AgentError with the raw text if it still
-    fails, so the user sees what went wrong rather than a bare stack trace.
-    """
+    """Parse JSON from an LLM reply, stripping the ```json fences they add anyway."""
     cleaned = raw.strip().replace("```json", "").replace("```", "").strip()
     try:
         return json.loads(cleaned)
@@ -106,20 +124,41 @@ def parse_json_response(raw: str):
         raise AgentError(f"The model returned malformed JSON: {cleaned[:200]}") from e
 
 
+# =============================================================================
+#  SEARCH — parallel
+# =============================================================================
+
 def tavily_search(query: str, api_key: str, max_results: int = 5) -> list[dict]:
-    """Run one Tavily search. Returns [] on failure rather than crashing the run."""
+    """One search. Returns [] on failure rather than killing the whole run."""
     try:
         client = TavilyClient(api_key=api_key)
-        results = client.search(
+        return client.search(
             query=query,
             max_results=max_results,
             topic="news",
             search_depth="advanced",
-        )
-        return results.get("results", [])
+        ).get("results", [])
     except Exception as e:
-        log.warning("Search failed for '%s': %s", query, e)
+        log.warning("search failed for %r: %s", query, e)
         return []
+
+
+def parallel_search(queries: list[str], api_key: str, max_results: int = 4) -> list[dict]:
+    """
+    Run several searches AT THE SAME TIME.
+
+    Sequentially, five searches at ~2s each is ~10s. In parallel it's ~2s — the
+    time of the slowest one. Searches are I/O-bound (mostly waiting on the
+    network), so threads work well here.
+    """
+    with ThreadPoolExecutor(max_workers=len(queries)) as pool:
+        futures = [
+            pool.submit(tavily_search, q, api_key, max_results) for q in queries
+        ]
+        results = []
+        for f in futures:
+            results.extend(f.result())
+    return results
 
 
 # =============================================================================
@@ -131,12 +170,7 @@ def wp_auth(username: str, app_password: str) -> HTTPBasicAuth:
 
 
 def verify_wordpress(wp_url: str, username: str, app_password: str) -> dict:
-    """
-    Check the WordPress credentials work before we do expensive AI calls.
-
-    Failing fast here saves the user from watching a 60-second generation run
-    only to hit a 401 at the very end.
-    """
+    """Check credentials before we spend time and quota. Failing fast is kinder."""
     try:
         r = requests.get(
             f"{wp_url}/wp-json/wp/v2/users/me",
@@ -144,16 +178,15 @@ def verify_wordpress(wp_url: str, username: str, app_password: str) -> dict:
             timeout=15,
         )
     except requests.RequestException as e:
-        raise AgentError(f"Couldn't reach {wp_url}: {e}") from e
+        raise AgentError(f"Couldn't reach {wp_url}. Check the URL. ({e})") from e
 
     if r.status_code == 200:
-        data = r.json()
-        return {"ok": True, "name": data.get("name", username)}
+        return {"ok": True, "name": r.json().get("name", username)}
 
     if r.status_code in (401, 403):
         raise AgentError(
-            "WordPress rejected those credentials. Check the username and "
-            "application password. If you use a security plugin (e.g. Wordfence), "
+            "WordPress rejected those credentials. Check the username and the "
+            "application password. If you run a security plugin like Wordfence, "
             "it may be blocking REST API authentication."
         )
 
@@ -161,7 +194,7 @@ def verify_wordpress(wp_url: str, username: str, app_password: str) -> dict:
 
 
 def get_category_id(name: str, wp_url: str, auth) -> int | None:
-    """Resolve a category NAME to its numeric ID. Returns None if not found."""
+    """Resolve a category name to its ID. Returns None if there's no match."""
     try:
         r = requests.get(
             f"{wp_url}/wp-json/wp/v2/categories",
@@ -173,17 +206,17 @@ def get_category_id(name: str, wp_url: str, auth) -> int | None:
             if cat["name"].lower() == name.lower():
                 return cat["id"]
     except Exception as e:
-        log.warning("Category lookup failed: %s", e)
+        log.warning("category lookup failed: %s", e)
     return None
 
 
 def get_internal_links(wp_url: str, auth, limit: int = 20) -> list[dict]:
     """
-    Fetch the user's published posts so the writer can link to them.
+    The user's published posts, so the writer can link back to them.
 
-    Internal linking is one of the few SEO levers you fully control — it keeps
-    readers on the site and spreads page authority. Drafts are excluded because
-    they have no public URL.
+    Internal links are one of the few SEO levers you fully control: they keep
+    readers on the site and spread page authority. Drafts are excluded — they
+    have no public URL.
     """
     try:
         r = requests.get(
@@ -200,27 +233,19 @@ def get_internal_links(wp_url: str, auth, limit: int = 20) -> list[dict]:
             if p.get("link") and p.get("title", {}).get("rendered")
         ]
     except Exception as e:
-        log.warning("Couldn't fetch internal links: %s", e)
+        log.warning("couldn't fetch internal links: %s", e)
         return []
 
 
 def publish_draft(
-    wp_url: str,
-    username: str,
-    app_password: str,
-    title: str,
-    body_markdown: str,
-    meta_description: str,
-    category: str,
+    wp_url: str, username: str, app_password: str,
+    title: str, body_markdown: str, meta_description: str, category: str,
 ) -> dict:
-    """
-    Push an article to WordPress as a DRAFT. Never publishes automatically —
-    the human always reviews before anything goes live.
-    """
+    """Push to WordPress as a DRAFT. Never publishes — a human always reviews."""
     auth = wp_auth(username, app_password)
 
     # markdown → HTML. This also turns [text](url) into real <a> anchors, which
-    # is what makes the internal/external linking actually work once published.
+    # is what makes the SEO linking actually work on the published page.
     body_html = markdown.markdown(body_markdown, extensions=["extra"])
 
     payload = {
@@ -239,11 +264,10 @@ def publish_draft(
             f"{wp_url}/wp-json/wp/v2/posts", json=payload, auth=auth, timeout=30
         )
     except requests.RequestException as e:
-        raise AgentError(f"Couldn't reach WordPress: {e}") from e
+        raise AgentError(f"Couldn't reach WordPress. ({e})") from e
 
     if r.status_code == 201:
-        data = r.json()
-        post_id = data.get("id")
+        post_id = r.json().get("id")
         return {
             "post_id": post_id,
             "edit_url": f"{wp_url}/wp-admin/post.php?post={post_id}&action=edit",
@@ -257,19 +281,18 @@ def publish_draft(
 #  AGENT STEPS
 # =============================================================================
 
-def scout_topics(tavily_key: str, google_key: str) -> list[dict]:
-    """Scan the news across several angles and rank the five best article ideas."""
-    angles = [
-        "biggest tech news this week",
-        "AI breakthrough trending now",
-        "new developer tools launch",
-        "Europe technology policy news",
-        "enterprise AI adoption news",
-    ]
+SCOUT_ANGLES = [
+    "biggest tech news this week",
+    "AI breakthrough trending now",
+    "new developer tools launch",
+    "Europe technology policy news",
+    "enterprise AI adoption news",
+]
 
-    results = []
-    for angle in angles:
-        results.extend(tavily_search(angle, tavily_key, max_results=4))
+
+def scout_topics(tavily_key: str, google_key: str, mode: str = "fast") -> list[dict]:
+    """Scan the news across several angles at once, then rank the five best ideas."""
+    results = parallel_search(SCOUT_ANGLES, tavily_key, max_results=4)
 
     if not results:
         raise AgentError("Couldn't fetch any news. Check your Tavily API key.")
@@ -304,10 +327,10 @@ Return ONLY valid JSON — exactly 5 objects, no markdown fences:
 NEWS SCAN:
 {scan[:6000]}
 """
-    return parse_json_response(call_llm(prompt, google_key))
+    return parse_json_response(call_llm(prompt, google_key, mode))
 
 
-def generate_seo(topic: str, google_key: str) -> dict:
+def generate_seo(topic: str, google_key: str, mode: str = "fast") -> dict:
     """Turn a topic into an SEO title, primary keyword, and meta description."""
     prompt = f"""You are an SEO strategist for a tech blog about AI and software.
 
@@ -319,45 +342,46 @@ Return ONLY valid JSON, no markdown fences:
   "keyword": "the single primary keyword phrase to target",
   "meta_description": "120-160 character meta description containing the keyword"
 }}"""
-    return parse_json_response(call_llm(prompt, google_key))
+    return parse_json_response(call_llm(prompt, google_key, mode))
 
 
 def research_topic(topic: str, tavily_key: str) -> dict:
-    """Deep-dive the chosen topic. Keeps source URLs so the writer can cite them."""
-    results = tavily_search(topic, tavily_key, max_results=6)
+    """
+    Research the topic from several angles at once.
+
+    Three parallel searches beat one sequential search: we get the news, the
+    analysis, and the numbers, all in the time of the slowest one.
+    """
+    queries = [topic, f"{topic} analysis", f"{topic} data statistics"]
+    results = parallel_search(queries, tavily_key, max_results=3)
 
     if not results:
         raise AgentError("No research results found. Try a different topic.")
 
+    # De-duplicate — the angles overlap, and the same article often appears twice.
+    seen, unique = set(), []
+    for r in results:
+        if r.get("url") and r["url"] not in seen:
+            seen.add(r["url"])
+            unique.append(r)
+
     sources = [
         {"title": r["title"], "url": r["url"], "snippet": r["content"][:300]}
-        for r in results
-        if r.get("url")
+        for r in unique
     ]
-
     research_text = "\n\n".join(
-        f"- {r['title']} (source: {r.get('url', 'n/a')}): {r['content']}"
-        for r in results
+        f"- {r['title']} (source: {r['url']}): {r['content']}" for r in unique
     )
 
     return {"research": research_text, "sources": sources}
 
 
 def write_article(
-    seo_title: str,
-    keyword: str,
-    research: str,
-    sources: list[dict],
-    internal_links: list[dict],
-    google_key: str,
+    seo_title: str, keyword: str, research: str,
+    sources: list[dict], internal_links: list[dict],
+    google_key: str, mode: str = "fast",
 ) -> str:
-    """
-    Write the article with real editorial craft and inline SEO links.
-
-    The prompt is the product here. It bans the tells of AI writing and demands
-    what good journalism actually does: a concrete lede, real tension, specific
-    names and numbers, a point of view, and an earned close.
-    """
+    """Write the article with editorial craft and inline SEO links."""
     external = "\n".join(f"- {s['title']} → {s['url']}" for s in sources) or "(none)"
     internal = (
         "\n".join(f"- {p['title']} → {p['url']}" for p in internal_links)
@@ -409,7 +433,7 @@ EXTERNAL — cite sources inline, on the SPECIFIC claim each supports.
 
 INTERNAL — link to the author's own earlier posts where genuinely relevant.
   • 1-3 links, woven into sentences. Never a "Related posts" dump.
-  • If none are truly relevant, use none. Forced links hurt.
+  • If none fit, use none. Forced links hurt.
   • ONLY use URLs from this list. NEVER invent a URL.
 {internal}
 
@@ -423,11 +447,11 @@ INTERNAL — link to the author's own earlier posts where genuinely relevant.
 RESEARCH:
 {research}
 """
-    return call_llm(prompt, google_key).strip()
+    return call_llm(prompt, google_key, mode).strip()
 
 
-def write_linkedin_post(seo_title: str, article: str, google_key: str) -> str:
-    """Write a LinkedIn hook post that funnels readers to the article."""
+def write_linkedin_post(seo_title: str, article: str, google_key: str, mode: str = "fast") -> str:
+    """A LinkedIn hook post that funnels readers to the article."""
     prompt = f"""You are a LinkedIn content strategist. Write a post promoting the
 article below. Goal: stop the scroll, deliver real value, drive clicks, win followers.
 
@@ -448,11 +472,11 @@ ARTICLE TITLE: {seo_title}
 ARTICLE:
 {article[:3000]}
 """
-    return call_llm(prompt, google_key).strip()
+    return call_llm(prompt, google_key, mode).strip()
 
 
 def split_title_body(draft: str) -> tuple[str, str]:
-    """First line is the title; everything after is the body."""
+    """First line is the title; the rest is the body."""
     lines = draft.strip().split("\n", 1)
     title = lines[0].lstrip("# ").strip().strip("*").strip()
     body = lines[1].strip() if len(lines) > 1 else ""
