@@ -10,35 +10,55 @@
 
   <header>
     <h1>Wandermind Writer</h1>
-    <button id="settings-btn">Settings</button>
+    <div class="header-actions">
+      <a href="/guide" class="back-link">Guide</a>
+      <button id="settings-btn">Settings</button>
+    </div>
   </header>
 
   <!-- SETTINGS: the BYOK credentials. Stored in the browser only. -->
   <section id="settings-panel" hidden>
-    <h2>Your Keys</h2>
-    <p>Stored in your browser only. Never sent to our servers or saved anywhere.</p>
+    <h2>Your keys</h2>
+    <p>Stored in your browser only. Sent with each request, used once, then
+       discarded. We have no database and keep no copy.</p>
 
-    <label>Gemini API Key
+    <p class="settings-help">
+      First time here? The <a href="/guide">setup guide</a> walks through all of
+      this. It takes about ten minutes.
+    </p>
+
+    <label>Gemini API key
       <input type="password" id="google-key" placeholder="AIza...">
+      <span class="field-hint">Writes the articles. Free from
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>
+      </span>
     </label>
 
-    <label>Tavily API Key
+    <label>Tavily API key
       <input type="password" id="tavily-key" placeholder="tvly-...">
+      <span class="field-hint">Searches the live web. Free from
+        <a href="https://tavily.com" target="_blank" rel="noopener">tavily.com</a>
+      </span>
     </label>
 
     <label>WordPress URL
       <input type="text" id="wp-url" placeholder="https://yoursite.com">
+      <span class="field-hint">Your site's address, including https://</span>
     </label>
 
-    <label>WordPress Username
+    <label>WordPress username
       <input type="text" id="wp-username" placeholder="username">
+      <span class="field-hint">The name you log in with — not your email</span>
     </label>
 
-    <label>WordPress App Password
+    <label>WordPress application password
       <input type="password" id="wp-password" placeholder="xxxx xxxx xxxx xxxx">
+      <span class="field-hint">Users → Profile → Application Passwords.
+        <a href="/guide">Can't find it?</a>
+      </span>
     </label>
 
-    <button id="verify-btn">Verify &amp; Save</button>
+    <button id="verify-btn">Verify &amp; save</button>
     <p id="verify-status"></p>
   </section>
 
@@ -46,11 +66,15 @@
   <section id="topic-section">
     <input type="text" id="topic-input" placeholder="What should I write about?">
     <input type="text" id="category-input" placeholder="Category" value="AI">
+    <div class="mode-toggle">
+      <button id="mode-fast" class="mode active" data-mode="fast">Fast</button>
+      <button id="mode-quality" class="mode" data-mode="quality">Quality</button>
+    </div>
     <button id="generate-btn">Generate</button>
     <button id="scout-btn">Find trending topics</button>
   </section>
 
-  <!-- SCOUT RESULTS: the 5 ranked ideas -->
+  <!-- SCOUT RESULTS: five ranked ideas -->
   <section id="scout-results" hidden>
     <h2>Trending ideas</h2>
     <div id="scout-list"></div>

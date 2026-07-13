@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup guide — Wandermind Writer</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="guide-page">
+
+  <header>
+    <h1>Setup guide</h1>
+    <a href="/" class="back-link">Back to the app</a>
+  </header>
+
+  <main class="guide">
+
+    <!-- ================================================================== -->
+    <section class="guide-intro">
+      <p class="lede">
+        Wandermind Writer researches a topic, writes an article, and puts it
+        in your WordPress drafts. It needs three things from you: a key to write
+        with, a key to research with, and permission to post to your site.
+      </p>
+      <p class="reassure">
+        <strong>Your keys stay in your browser.</strong> They are sent with each
+        request and used once, then discarded. They are never saved on our
+        servers, and we have no database. Close the tab and they're gone.
+      </p>
+      <p class="time">Setup takes about ten minutes. You only do it once.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <section class="step">
+      <div class="step-marker" data-step="1"></div>
+      <div class="step-body">
+        <h2>Get a Gemini key</h2>
+        <p class="what">This is the AI that writes your articles. It's free to start.</p>
+
+        <ol>
+          <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></li>
+          <li>Sign in with your Google account</li>
+          <li>Click <strong>Create API key</strong></li>
+          <li>Copy the key — it starts with <code>AIza</code></li>
+        </ol>
+
+        <div class="note">
+          <strong>Free tier limits.</strong> Google gives you a set number of
+          free requests per day. If you write a lot, you may hit the ceiling and
+          see a "quota exceeded" message. Waiting until tomorrow resets it, or
+          you can add billing to your Google account to remove the limit — a
+          full article costs a fraction of a cent.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <section class="step">
+      <div class="step-marker" data-step="2"></div>
+      <div class="step-body">
+        <h2>Get a Tavily key</h2>
+        <p class="what">This searches the live web, so your articles are based on
+        current news rather than the AI's stale memory.</p>
+
+        <ol>
+          <li>Go to <a href="https://tavily.com" target="_blank" rel="noopener">tavily.com</a></li>
+          <li>Sign up — the Google sign-in is quickest</li>
+          <li>Your key is on the dashboard as soon as you're in</li>
+          <li>Copy it — it starts with <code>tvly-</code></li>
+        </ol>
+
+        <div class="note">
+          The free plan includes 1,000 searches a month. One article uses about
+          three, so that's roughly 300 articles.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <section class="step">
+      <div class="step-marker" data-step="3"></div>
+      <div class="step-body">
+        <h2>Create a WordPress application password</h2>
+        <p class="what">This lets the app put drafts in your site. It is not your
+        login password — it's a separate key you can revoke at any time without
+        touching your account.</p>
+
+        <ol>
+          <li>Log in to your WordPress admin</li>
+          <li>Go to <strong>Users → Profile</strong></li>
+          <li>Scroll to the very bottom, to <strong>Application Passwords</strong></li>
+          <li>Type a name, like <code>writer</code>, and click <strong>Add New Application Password</strong></li>
+          <li>Copy the password it shows you. It looks like
+              <code>abcd EFGH ijkl MNOP qrst UVWX</code></li>
+        </ol>
+
+        <div class="note important">
+          <strong>WordPress shows this password once.</strong> If you lose it,
+          delete it and make a new one. That's normal and costs nothing.
+        </div>
+
+        <h3>Can't find the Application Passwords section?</h3>
+        <p>This is the most common snag, and it's almost always one of two things.</p>
+
+        <div class="fix">
+          <p><strong>A security plugin is hiding it.</strong> Wordfence, Solid
+          Security, and others disable application passwords by default. In
+          Wordfence: go to <strong>Wordfence → All Options</strong>, search the
+          page for "application password", and untick
+          <em>Disable WordPress application passwords</em>. Save, then reload
+          your profile page.</p>
+        </div>
+
+        <div class="fix">
+          <p><strong>Your site isn't on HTTPS.</strong> WordPress switches this
+          feature off on any site that isn't secure. If your address bar shows
+          "Not secure", ask your host to turn on SSL — most offer it free.</p>
+        </div>
+
+        <h3>It still says "not allowed" when I connect</h3>
+        <p>If the app reports that WordPress rejected your credentials even
+        though the password looks right, a security plugin is likely blocking
+        the connection itself. Installing the
+        <strong>miniOrange WP REST API Authentication</strong> plugin resolves
+        this on most sites.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <section class="step">
+      <div class="step-marker" data-step="4"></div>
+      <div class="step-body">
+        <h2>Connect and write</h2>
+
+        <ol>
+          <li>Open the app and click <strong>Settings</strong></li>
+          <li>Paste in your two keys, your site address, your WordPress username,
+              and the application password</li>
+          <li>Click <strong>Verify &amp; Save</strong>. You should see
+              "Connected as [your name]"</li>
+          <li>Type a topic — or click <strong>Find trending topics</strong> and
+              pick one</li>
+          <li>Click <strong>Generate</strong>, and watch it work</li>
+        </ol>
+
+        <p>When it's done you'll have an article on the left, an SEO score in the
+        middle, and a LinkedIn post on the right. Edit anything you like, then
+        click <strong>Push draft to WordPress</strong>.</p>
+
+        <div class="note">
+          <strong>It saves a draft, never a published post.</strong> Nothing goes
+          live on your site until you read it and press publish yourself.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <section class="faq">
+      <h2>Common questions</h2>
+
+      <details>
+        <summary>Where are my keys stored?</summary>
+        <p>In your browser, and only for as long as the tab is open. They travel
+        to our server with each request, get used once, and are discarded. We
+        don't have a database and we keep no copy. Close the tab and they're gone
+        — you'll re-enter them next time.</p>
+      </details>
+
+      <details>
+        <summary>Fast or Quality — which should I pick?</summary>
+        <p>Fast finishes in about twenty seconds and is good for most topics.
+        Quality takes longer and uses a stronger model, which handles facts and
+        nuance better. Use Quality when the topic is technical or the numbers
+        matter.</p>
+      </details>
+
+      <details>
+        <summary>The first load is slow.</summary>
+        <p>The app sleeps when nobody's using it, and takes up to a minute to
+        wake. Once it's awake it's quick. This is a limitation of our free
+        hosting, not your connection.</p>
+      </details>
+
+      <details>
+        <summary>It says all models are busy.</summary>
+        <p>Either Google's servers are overloaded, or you've used your free daily
+        quota. Wait a few minutes and try again. If it keeps happening, you've
+        likely hit the daily limit — it resets tomorrow.</p>
+      </details>
+
+      <details>
+        <summary>The article got a low SEO score. Is that bad?</summary>
+        <p>Not necessarily. The score measures on-page basics — is the keyword in
+        the title, is the article long enough, are there links. Every check tells
+        you exactly what it looked at, so you can fix the ones you care about and
+        ignore the ones you don't.</p>
+      </details>
+
+      <details>
+        <summary>Can I edit the article before it goes to WordPress?</summary>
+        <p>Yes. Both the article and the LinkedIn post are editable. Your changes
+        are what gets sent. Read everything before you publish — the AI researches
+        real sources, but you're the editor.</p>
+      </details>
+
+      <details>
+        <summary>How do I revoke access later?</summary>
+        <p>In WordPress, go to <strong>Users → Profile → Application
+        Passwords</strong> and click <strong>Revoke</strong>. The app instantly
+        loses the ability to post. Your Gemini and Tavily keys can be deleted
+        from their own dashboards the same way.</p>
+      </details>
+    </section>
+
+    <p class="footer-cta">
+      <a href="/" class="cta">Start writing</a>
+    </p>
+
+  </main>
+
+</body>
+</html>

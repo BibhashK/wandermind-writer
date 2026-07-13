@@ -603,3 +603,244 @@ button:focus-visible {
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+   THE GUIDE
+   Numbered steps are used here because the content genuinely IS a sequence —
+   you cannot do step 3 before step 1. The numbers carry information.
+   ========================================================================== */
+
+.guide { max-width: 780px; margin: 0 auto; }
+
+.back-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-decoration: none;
+  padding: 9px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  transition: color 0.2s, border-color 0.2s;
+}
+.back-link:hover { color: var(--text); border-color: var(--edge-lit); }
+
+.guide-page header h1::after { content: 'ten minutes, once'; }
+
+/* --- Intro ---------------------------------------------------------------- */
+.guide-intro {
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(150%);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.lede {
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--text);
+  margin-bottom: 22px;
+}
+
+.reassure {
+  font-size: 14px;
+  color: var(--text-dim);
+  padding-left: 16px;
+  border-left: 2px solid var(--stage-6);
+  margin-bottom: 18px;
+}
+.reassure strong { color: var(--stage-6); }
+
+.time {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* --- Steps ---------------------------------------------------------------- */
+.step {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 22px;
+  margin-bottom: 44px;
+}
+
+/* The step number carries its stage colour from the pipeline — the same
+   spectrum the user will see when the app runs. */
+.step-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--edge);
+  background: rgba(0,0,0,0.3);
+}
+.step-marker::before { content: attr(data-step); }
+.step-marker[data-step="1"] { color: var(--stage-1); box-shadow: 0 0 18px rgba(34,211,238,0.18); }
+.step-marker[data-step="2"] { color: var(--stage-2); box-shadow: 0 0 18px rgba(99,102,241,0.18); }
+.step-marker[data-step="3"] { color: var(--stage-3); box-shadow: 0 0 18px rgba(168,85,247,0.18); }
+.step-marker[data-step="4"] { color: var(--stage-6); box-shadow: 0 0 18px rgba(16,185,129,0.18); }
+
+.step-body h2 {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.step-body h3 {
+  font-size: 16px;
+  color: var(--text);
+  margin: 26px 0 8px;
+}
+
+.what {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+
+.step-body ol { margin: 0 0 18px 18px; }
+.step-body li {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.step-body li strong { color: var(--text); }
+
+.step-body p { font-size: 14px; color: var(--text-dim); margin-bottom: 12px; }
+
+.step-body a { color: var(--stage-1); text-decoration: none; border-bottom: 1px solid rgba(34,211,238,0.35); }
+.step-body a:hover { border-bottom-color: var(--stage-1); }
+
+code {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 4px;
+  color: var(--text);
+}
+
+/* --- Notes and fixes ------------------------------------------------------ */
+.note {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 14px 16px;
+  background: rgba(0,0,0,0.22);
+  border-left: 2px solid var(--stage-2);
+  border-radius: 0 9px 9px 0;
+  margin: 16px 0;
+}
+.note.important { border-left-color: var(--stage-5); }
+.note strong { color: var(--text); }
+
+.fix {
+  padding: 14px 16px;
+  background: rgba(0,0,0,0.22);
+  border-left: 2px solid var(--stage-4);
+  border-radius: 0 9px 9px 0;
+  margin-bottom: 12px;
+}
+.fix p { margin: 0; font-size: 13px; }
+.fix strong { color: var(--text); }
+
+/* --- FAQ ------------------------------------------------------------------ */
+.faq {
+  background: var(--glass);
+  backdrop-filter: blur(28px);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+.faq > h2 {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 20px;
+}
+
+details {
+  border-bottom: 1px solid var(--edge);
+  padding: 14px 0;
+}
+details:last-child { border-bottom: none; }
+
+summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+summary::-webkit-details-marker { display: none; }
+summary::after {
+  content: '+';
+  font-family: var(--mono);
+  color: var(--text-faint);
+  transition: transform 0.2s;
+}
+details[open] summary::after { content: '−'; }
+details[open] summary { color: var(--stage-1); }
+
+details p {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 10px;
+  padding-right: 24px;
+}
+
+/* --- CTA ------------------------------------------------------------------ */
+.footer-cta { text-align: center; margin-bottom: 60px; }
+.cta {
+  display: inline-block;
+  padding: 13px 32px;
+  background: linear-gradient(100deg, var(--stage-2), var(--stage-3), var(--stage-4));
+  border-radius: 9px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(168,85,247,0.28);
+}
+.cta:hover { box-shadow: 0 6px 28px rgba(168,85,247,0.42); }
+
+/* --- Inline help in Settings ---------------------------------------------- */
+.field-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  font-weight: 400;
+}
+.field-hint a { color: var(--stage-1); text-decoration: none; }
+.field-hint a:hover { text-decoration: underline; }
+
+.settings-help {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+.settings-help a { color: var(--stage-1); }
+
+@media (max-width: 640px) {
+  .step { grid-template-columns: 1fr; gap: 12px; }
+}
