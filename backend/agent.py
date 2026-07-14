@@ -1,17 +1,13 @@
 """
-The agent. Config is passed in, so it works for many users at once.
+The agent. Config is passed in, so it serves many users at once.
 
 SPEED:
-    Two things make this fast.
-
-    1. MODEL TIERS. "Fast" leads with Flash-Lite (~381 tok/s, Pro-derived, free
-       tier). "Quality" leads with 3.5 Flash (beats 3.1 Pro on agentic
-       benchmarks). Both fall back to a shared stable model so a busy tier never
-       kills the run.
-
-    2. PARALLELISM. The searches all fire at once instead of one after another,
-       and SEO metadata is generated while research is still running. Sequential
-       code waits; concurrent code doesn't.
+    1. MODEL TIERS. "Fast" leads with Flash-Lite (~381 tok/s, Pro-derived).
+       "Quality" leads with 3.5 Flash (better factual grounding). Both fall back
+       to a shared stable model so a busy tier never kills the run.
+    2. PARALLELISM. Searches fire at once instead of one after another, and SEO
+       runs while research is still going. Sequential code waits; concurrent
+       code doesn't.
 
 SECURITY:
     Credentials live in memory for one request. Never written to disk, never
@@ -35,24 +31,19 @@ log = logging.getLogger(__name__)
 # =============================================================================
 #  MODEL TIERS
 # =============================================================================
-# Each chain is tried in order. If one model is overloaded or rate-limited, we
-# retry it briefly, then fall back to the next.
-#
 # NOTE: gemini-2.0-flash and 2.0-flash-lite were SHUT DOWN on 1 June 2026.
-# Don't put them back in these lists — requests to them 404.
+# Don't put them back — requests to them 404.
 
 MODEL_CHAINS = {
-    # Flash-Lite is the fastest tier and, unusually, is derived from Pro rather
-    # than a smaller Flash base — so it's quick without being dumb. Ideal for
-    # our long, highly-structured prompts.
+    # Flash-Lite is the fastest tier and is derived from Pro rather than a
+    # smaller Flash base — quick without being dumb.
     "fast": [
         "gemini-3.1-flash-lite",
         "gemini-2.5-flash-lite",
         "gemini-2.5-flash",
     ],
-    # 3.5 Flash is the current default flagship — it beats 3.1 Pro on agentic
-    # benchmarks while running several times faster. Better factual grounding
-    # than Flash-Lite, which matters when we're citing sources.
+    # 3.5 Flash beats 3.1 Pro on agentic benchmarks while running faster, and
+    # grounds facts better than Flash-Lite — which matters when citing sources.
     "quality": [
         "gemini-3.5-flash",
         "gemini-3-flash",
@@ -61,9 +52,9 @@ MODEL_CHAINS = {
 }
 
 RETRYABLE = (
-    "503", "500", "502", "504",              # transient server errors
+    "503", "500", "502", "504",
     "UNAVAILABLE", "INTERNAL", "overloaded",
-    "RESOURCE_EXHAUSTED", "429",             # rate limits
+    "RESOURCE_EXHAUSTED", "429",
 )
 
 
@@ -87,18 +78,17 @@ def call_llm(prompt: str, api_key: str, mode: str = "fast", temperature: float =
             google_api_key=api_key,
         )
 
-        for attempt in range(2):        # 2 tries, then move to the next model
+        for attempt in range(2):
             try:
                 response = llm.invoke(prompt)
                 content = response.content
 
-                # Some models return a list of parts rather than a plain string.
                 if isinstance(content, list):
                     content = "".join(
                         p.get("text", "") if isinstance(p, dict) else str(p)
                         for p in content
                     )
-                log.info("wrote with %s", model_name)
+                log.info("used %s (%s mode)", model_name, mode)
                 return content
 
             except Exception as e:
@@ -106,7 +96,6 @@ def call_llm(prompt: str, api_key: str, mode: str = "fast", temperature: float =
                 if any(m in str(e) for m in RETRYABLE):
                     time.sleep(3 * (attempt + 1))
                 else:
-                    # A real error (bad key, bad request) — surface it, don't mask.
                     raise AgentError(f"Model error: {e}") from e
 
     raise AgentError(
@@ -129,7 +118,7 @@ def parse_json_response(raw: str):
 # =============================================================================
 
 def tavily_search(query: str, api_key: str, max_results: int = 5) -> list[dict]:
-    """One search. Returns [] on failure rather than killing the whole run."""
+    """One search. Returns [] on failure rather than killing the run."""
     try:
         client = TavilyClient(api_key=api_key)
         return client.search(
@@ -147,14 +136,12 @@ def parallel_search(queries: list[str], api_key: str, max_results: int = 4) -> l
     """
     Run several searches AT THE SAME TIME.
 
-    Sequentially, five searches at ~2s each is ~10s. In parallel it's ~2s — the
+    Five sequential searches at ~2s each is ~10s. In parallel it's ~2s — the
     time of the slowest one. Searches are I/O-bound (mostly waiting on the
     network), so threads work well here.
     """
     with ThreadPoolExecutor(max_workers=len(queries)) as pool:
-        futures = [
-            pool.submit(tavily_search, q, api_key, max_results) for q in queries
-        ]
+        futures = [pool.submit(tavily_search, q, api_key, max_results) for q in queries]
         results = []
         for f in futures:
             results.extend(f.result())
@@ -187,7 +174,7 @@ def verify_wordpress(wp_url: str, username: str, app_password: str) -> dict:
         raise AgentError(
             "WordPress rejected those credentials. Check the username and the "
             "application password. If you run a security plugin like Wordfence, "
-            "it may be blocking REST API authentication."
+            "it may be blocking REST API authentication — see the guide."
         )
 
     raise AgentError(f"WordPress returned {r.status_code}: {r.text[:200]}")
@@ -214,9 +201,8 @@ def get_internal_links(wp_url: str, auth, limit: int = 20) -> list[dict]:
     """
     The user's published posts, so the writer can link back to them.
 
-    Internal links are one of the few SEO levers you fully control: they keep
-    readers on the site and spread page authority. Drafts are excluded — they
-    have no public URL.
+    Internal links are one of the few SEO levers you fully control. Drafts are
+    excluded — they have no public URL.
     """
     try:
         r = requests.get(
@@ -245,7 +231,7 @@ def publish_draft(
     auth = wp_auth(username, app_password)
 
     # markdown → HTML. This also turns [text](url) into real <a> anchors, which
-    # is what makes the SEO linking actually work on the published page.
+    # is what makes the SEO linking work on the published page.
     body_html = markdown.markdown(body_markdown, extensions=["extra"])
 
     payload = {
@@ -278,41 +264,70 @@ def publish_draft(
 
 
 # =============================================================================
-#  AGENT STEPS
+#  SCOUT — niche-aware
 # =============================================================================
 
-SCOUT_ANGLES = [
-    "biggest tech news this week",
-    "AI breakthrough trending now",
-    "new developer tools launch",
-    "Europe technology policy news",
-    "enterprise AI adoption news",
-]
+def generate_search_angles(niche: str, google_key: str, mode: str = "fast") -> list[str]:
+    """
+    Work out what to actually search for, given the user's niche.
+
+    A finance blog and a cooking blog need genuinely different angles. Rather
+    than substituting the niche into fixed templates, we let the model decide —
+    it knows "central bank policy" matters for one and "restaurant openings"
+    for the other.
+    """
+    prompt = f"""You are a news editor planning today's research for a blog.
+
+THE BLOG COVERS: {niche}
+
+Write FIVE web search queries that would surface what's genuinely newsworthy in
+this space right now. Think like an editor: you want recent developments, new
+launches, notable numbers, controversies, and shifts — not evergreen how-tos.
+
+Make the queries specific and varied. They should not overlap.
+
+Return ONLY a valid JSON array of 5 strings, no markdown fences:
+["query one", "query two", "query three", "query four", "query five"]"""
+
+    angles = parse_json_response(call_llm(prompt, google_key, mode))
+
+    if not isinstance(angles, list) or not angles:
+        raise AgentError(
+            "Couldn't work out what to search for. Try describing your niche "
+            "differently — be specific, like 'plant-based nutrition' rather than 'food'."
+        )
+
+    return [str(a) for a in angles[:5]]
 
 
-def scout_topics(tavily_key: str, google_key: str, mode: str = "fast") -> list[dict]:
-    """Scan the news across several angles at once, then rank the five best ideas."""
-    results = parallel_search(SCOUT_ANGLES, tavily_key, max_results=4)
+def scout_topics(
+    niche: str, tavily_key: str, google_key: str, mode: str = "fast"
+) -> list[dict]:
+    """Work out what to search, search it in parallel, then rank the best ideas."""
+    angles = generate_search_angles(niche, google_key, mode)
+    log.info("scouting angles: %s", angles)
+
+    results = parallel_search(angles, tavily_key, max_results=4)
 
     if not results:
-        raise AgentError("Couldn't fetch any news. Check your Tavily API key.")
+        raise AgentError(
+            "Couldn't find any news on that. Try a broader description of your niche."
+        )
 
     scan = "\n\n".join(f"- {r['title']}: {r['content'][:400]}" for r in results)
 
-    prompt = f"""You are a ruthless editor at a major tech publication. Below is a raw
-scan of current tech/AI news. Identify the FIVE strongest blog post ideas for an
-independent tech blogger covering AI, agents, developer tools, and enterprise
-technology, with a European perspective.
+    prompt = f"""You are a ruthless editor. Below is a scan of current news. Pick the
+FIVE strongest blog post ideas for a blog that covers: {niche}
 
 Judge each on:
 - FRESHNESS: genuinely new, or already everywhere?
-- TRAFFIC POTENTIAL: would people search for or click this?
+- TRAFFIC POTENTIAL: would this blog's readers search for or click this?
 - CROWDEDNESS: is every outlet already covering it? (less crowded is better)
 - HOOK STRENGTH: is there a surprising number, angle, or tension to open with?
-- AUTHORITY FIT: can an enterprise/AI engineer credibly own this take?
+- FIT: does it genuinely belong on a blog about {niche}?
 
-Reject generic ideas like "The Future of AI". Favour specific, timely angles with
-a real news peg.
+Reject generic ideas. Reject anything off-topic for this blog, however
+interesting in itself. Favour specific, timely angles with a real news peg.
 
 Return ONLY valid JSON — exactly 5 objects, no markdown fences:
 [
@@ -320,7 +335,7 @@ Return ONLY valid JSON — exactly 5 objects, no markdown fences:
     "topic": "the specific topic, as a clear phrase",
     "why": "one sentence on why this could pull traffic",
     "hook": "the surprising fact or tension to open with",
-    "category": "AI or Tech or Business"
+    "category": "a one-word category that fits this blog"
   }}
 ]
 
@@ -330,9 +345,13 @@ NEWS SCAN:
     return parse_json_response(call_llm(prompt, google_key, mode))
 
 
+# =============================================================================
+#  WRITING PIPELINE
+# =============================================================================
+
 def generate_seo(topic: str, google_key: str, mode: str = "fast") -> dict:
     """Turn a topic into an SEO title, primary keyword, and meta description."""
-    prompt = f"""You are an SEO strategist for a tech blog about AI and software.
+    prompt = f"""You are an SEO strategist for a blog.
 
 TOPIC: {topic}
 
@@ -347,10 +366,10 @@ Return ONLY valid JSON, no markdown fences:
 
 def research_topic(topic: str, tavily_key: str) -> dict:
     """
-    Research the topic from several angles at once.
+    Research the topic from three angles at once.
 
-    Three parallel searches beat one sequential search: we get the news, the
-    analysis, and the numbers, all in the time of the slowest one.
+    Parallel beats sequential: we get the news, the analysis, and the numbers in
+    the time of the slowest one.
     """
     queries = [topic, f"{topic} analysis", f"{topic} data statistics"]
     results = parallel_search(queries, tavily_key, max_results=3)
@@ -358,7 +377,7 @@ def research_topic(topic: str, tavily_key: str) -> dict:
     if not results:
         raise AgentError("No research results found. Try a different topic.")
 
-    # De-duplicate — the angles overlap, and the same article often appears twice.
+    # De-duplicate — the angles overlap, so the same article often appears twice.
     seen, unique = set(), []
     for r in results:
         if r.get("url") and r["url"] not in seen:
@@ -389,8 +408,8 @@ def write_article(
     )
 
     prompt = f"""You are a senior features writer for a publication like The Wall Street
-Journal or Forbes. Your readers are intelligent and busy — engineers, founders,
-enterprise leaders. They stop reading the instant you become generic.
+Journal or Forbes. Your readers are intelligent and busy. They stop reading the
+instant you become generic.
 
 TITLE (first line, no markdown symbols): {seo_title}
 PRIMARY KEYWORD (weave in naturally, never stuff): {keyword}
@@ -399,7 +418,7 @@ PRIMARY KEYWORD (weave in naturally, never stuff): {keyword}
 
 1. THE LEDE. Open with something CONCRETE and SPECIFIC from the research — a
    startling number, a named person doing a specific thing, a sharp contrast.
-   FORBIDDEN: "In today's rapidly evolving...", "In the age of AI...",
+   FORBIDDEN: "In today's rapidly evolving...", "In the age of...",
    "Imagine a world where...", "Technology is changing fast..."
 
 2. TENSION. Every piece worth reading has a conflict: old way vs new way,

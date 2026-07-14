@@ -16,11 +16,11 @@
     </div>
   </header>
 
-  <!-- SETTINGS: the BYOK credentials. Stored in the browser only. -->
+  <!-- SETTINGS: the BYOK credentials. Browser only. -->
   <section id="settings-panel" hidden>
     <h2>Your keys</h2>
-    <p>Stored in your browser only. Sent with each request, used once, then
-       discarded. We have no database and keep no copy.</p>
+    <p class="reassure-line">Stored in your browser only. Sent with each request,
+      used once, then discarded. We have no database and keep no copy.</p>
 
     <p class="settings-help">
       First time here? The <a href="/guide">setup guide</a> walks through all of
@@ -62,25 +62,42 @@
     <p id="verify-status"></p>
   </section>
 
-  <!-- TOPIC: type one, or let the scout find trending ones -->
+  <!-- TOPIC BAR -->
   <section id="topic-section">
     <input type="text" id="topic-input" placeholder="What should I write about?">
     <input type="text" id="category-input" placeholder="Category" value="AI">
-    <div class="mode-toggle">
-      <button id="mode-fast" class="mode active" data-mode="fast">Fast</button>
-      <button id="mode-quality" class="mode" data-mode="quality">Quality</button>
+
+    <div class="mode-toggle" role="group" aria-label="Speed or quality">
+      <button type="button" id="mode-fast" class="mode active" data-mode="fast">Fast</button>
+      <button type="button" id="mode-quality" class="mode" data-mode="quality">Quality</button>
     </div>
+
     <button id="generate-btn">Generate</button>
-    <button id="scout-btn">Find trending topics</button>
+    <button id="scout-btn">Find topics</button>
   </section>
 
-  <!-- SCOUT RESULTS: five ranked ideas -->
+  <p id="mode-explainer">Fast: about 20 seconds. Quality: slower, stronger model — better with facts and nuance.</p>
+
+  <!-- SCOUT: what does this blog cover? -->
+  <section id="scout-prompt" hidden>
+    <h2>What does your blog cover?</h2>
+    <p class="settings-help">
+      Be specific. "Vegan baking for beginners" finds better topics than "food".
+    </p>
+    <div class="scout-input-row">
+      <input type="text" id="niche-input"
+             placeholder="e.g. AI agents for enterprise, or plant-based nutrition">
+      <button id="scout-go-btn">Find topics</button>
+    </div>
+  </section>
+
+  <!-- SCOUT RESULTS -->
   <section id="scout-results" hidden>
     <h2>Trending ideas</h2>
     <div id="scout-list"></div>
   </section>
 
-  <!-- PROGRESS: the wire. Light travels; each stage locks in its own colour. -->
+  <!-- PROGRESS: the wire. Light travels; each stage locks in its colour. -->
   <section id="progress" hidden>
     <div class="pipeline">
       <div class="stage" data-stage="1" id="stage-seo">
@@ -115,13 +132,13 @@
     <p id="progress-message">Working…</p>
   </section>
 
-  <!-- RESEARCH: the sources found -->
+  <!-- RESEARCH -->
   <section id="research-section" hidden>
     <h2>Sources</h2>
     <div id="sources-list"></div>
   </section>
 
-  <!-- OUTPUT: article left, intelligence right -->
+  <!-- OUTPUT -->
   <main id="output" hidden>
     <div id="article-panel">
       <h2>Article</h2>

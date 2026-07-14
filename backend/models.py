@@ -40,6 +40,7 @@ class GenerateRequest(BaseModel):
 
 class ScoutRequest(BaseModel):
     config: UserConfig
+    niche: str = Field(..., min_length=3, description="What the blog covers")
     mode: SpeedMode = Field(default="fast")
 
 

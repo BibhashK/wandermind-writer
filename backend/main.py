@@ -8,13 +8,6 @@ WHAT A BACKEND IS:
 WHY WE STREAM:
     Generating takes 20-50 seconds. Rather than make the user stare at a spinner,
     the server pushes an update as each step finishes and the UI renders it live.
-    That's the difference between "is it stuck?" and "it's working."
-
-WHERE THE SPEED COMES FROM:
-    • The searches fire in parallel, not one after another.
-    • SEO metadata is generated WHILE research is still running — they don't
-      depend on each other, so there's no reason to wait.
-    • "Fast" mode leads with Flash-Lite (~381 tok/s, Pro-derived).
 
 SECURITY:
     Credentials arrive with each request, live in memory for that request only,
@@ -43,12 +36,12 @@ log = logging.getLogger(__name__)
 app = FastAPI(
     title="Wandermind Writer",
     description="AI research-to-publish agent for WordPress. Bring your own keys.",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # TODO: restrict to your domain before going live
+    allow_origins=["*"],      # TODO: restrict to your domain before going live
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -92,10 +85,13 @@ def verify(config: UserConfig):
 
 @app.post("/api/scout")
 def scout(req: ScoutRequest):
-    """Five ranked article ideas, from a parallel scan of the news."""
+    """Five ranked article ideas, tuned to whatever the user's blog covers."""
     try:
         topics = agent.scout_topics(
-            req.config.tavily_api_key, req.config.google_api_key, req.mode
+            req.niche,
+            req.config.tavily_api_key,
+            req.config.google_api_key,
+            req.mode,
         )
         return {"topics": topics}
     except AgentError as e:
@@ -116,8 +112,7 @@ def generation_stream(req: GenerateRequest):
     Run the pipeline, yielding a progress event after each step.
 
     This is a Python generator — each `yield` sends a chunk to the browser
-    immediately rather than waiting for the whole function to finish. That's
-    what makes the progress feel live.
+    immediately rather than waiting for the whole function to finish.
     """
     cfg = req.config
     wp_url = cfg.clean_wp_url()
@@ -125,8 +120,7 @@ def generation_stream(req: GenerateRequest):
 
     try:
         # --- SEO + RESEARCH, CONCURRENTLY ------------------------------------
-        # These don't depend on each other. Running them at the same time saves
-        # roughly the duration of whichever finishes first.
+        # These don't depend on each other, so there's no reason to wait.
         yield sse("progress", {"step": "seo", "message": "Optimising for search…"})
 
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -237,15 +231,6 @@ def publish(req: PublishRequest):
 # deploy rather than two.
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
-
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-    @app.get("/")
-    def index():
-        return FileResponse(FRONTEND_DIR / "index.html")
-FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
-
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")

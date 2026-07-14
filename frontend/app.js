@@ -3,7 +3,7 @@
  *
  * HOW THE WEB WORKS (the short version):
  *   1. JavaScript runs in the browser.
- *   2. fetch() sends an HTTP request to your server.
+ *   2. fetch() sends an HTTP request to the server.
  *   3. The server runs a Python function and sends data back.
  *   4. JavaScript updates the page with that data.
  *
@@ -16,6 +16,15 @@
 const $ = (id) => document.getElementById(id);
 const show = (id) => ($(id).hidden = false);
 const hide = (id) => ($(id).hidden = true);
+
+// ---------------------------------------------------------------------------
+// STATE
+// ---------------------------------------------------------------------------
+// Which model tier to use. "fast" leads with Flash-Lite; "quality" with 3.5 Flash.
+let speedMode = 'fast';
+
+// SEO metadata from the current run — needed when we publish.
+let seoData = null;
 
 // ---------------------------------------------------------------------------
 // CREDENTIALS — the browser only. Never persisted server-side.
@@ -59,48 +68,29 @@ function loadConfigIntoForm() {
 
 const STAGES = ['seo', 'research', 'links', 'write', 'score', 'linkedin'];
 
-function resetPipeline() {
+function paintPipeline(activeIndex, allDone = false) {
   STAGES.forEach((s, i) => {
     const el = $(`stage-${s}`);
-    el.className = 'stage';
     el.dataset.stage = i + 1;
-  });
-  for (let i = 1; i <= 5; i++) {
-    const wire = $(`wire-${i}`);
-    wire.className = 'wire';
-    wire.dataset.wire = i;
-  }
-}
-
-function setStage(name) {
-  const idx = STAGES.indexOf(name);
-  if (idx === -1) return;
-
-  STAGES.forEach((s, i) => {
-    const el = $(`stage-${s}`);
-    el.className = i < idx ? 'stage done' : i === idx ? 'stage active' : 'stage';
-    el.dataset.stage = i + 1;
+    if (allDone) el.className = 'stage done';
+    else if (i < activeIndex) el.className = 'stage done';
+    else if (i === activeIndex) el.className = 'stage active';
+    else el.className = 'stage';
   });
 
   for (let i = 1; i <= 5; i++) {
     const wire = $(`wire-${i}`);
-    wire.className = i < idx ? 'wire done' : i === idx ? 'wire active' : 'wire';
     wire.dataset.wire = i;
+    if (allDone) wire.className = 'wire done';
+    else if (i < activeIndex) wire.className = 'wire done';
+    else if (i === activeIndex) wire.className = 'wire active';
+    else wire.className = 'wire';
   }
 }
 
-function completePipeline() {
-  STAGES.forEach((s, i) => {
-    const el = $(`stage-${s}`);
-    el.className = 'stage done';
-    el.dataset.stage = i + 1;
-  });
-  for (let i = 1; i <= 5; i++) {
-    const wire = $(`wire-${i}`);
-    wire.className = 'wire done';
-    wire.dataset.wire = i;
-  }
-}
+const resetPipeline = () => paintPipeline(-1);
+const setStage = (name) => paintPipeline(STAGES.indexOf(name));
+const completePipeline = () => paintPipeline(STAGES.length, true);
 
 // ---------------------------------------------------------------------------
 // VERIFY — check the keys work before spending time or quota.
@@ -108,6 +98,7 @@ function completePipeline() {
 async function verify() {
   const config = saveConfig();
   const status = $('verify-status');
+  status.className = '';
   status.textContent = 'Checking…';
 
   try {
@@ -120,16 +111,21 @@ async function verify() {
 
     const data = await response.json();                 // JSON text → JS object
 
-    status.textContent = response.ok
-      ? `Connected as ${data.wordpress_user}`
-      : data.detail;
+    if (response.ok) {
+      status.className = 'ok';
+      status.textContent = `Connected as ${data.wordpress_user}`;
+    } else {
+      status.className = 'bad';
+      status.textContent = data.detail;
+    }
   } catch (err) {
+    status.className = 'bad';
     status.textContent = `Couldn't reach the server. ${err.message}`;
   }
 }
 
 // ---------------------------------------------------------------------------
-// SCOUT — five ranked topic ideas.
+// SCOUT — five ranked ideas, tuned to whatever the user's blog covers.
 // ---------------------------------------------------------------------------
 async function scout() {
   const config = getConfig();
@@ -138,26 +134,33 @@ async function scout() {
     return;
   }
 
+  const niche = $('niche-input').value.trim();
+  if (!niche) {
+    $('niche-input').focus();
+    return;
+  }
+
+  hide('scout-prompt');
   hide('scout-results');
   resetPipeline();
   show('progress');
-  $('progress-message').textContent = 'Scanning the news…';
+  $('progress-message').textContent = `Scanning ${niche}…`;
 
   try {
     const response = await fetch('/api/scout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config }),      // note: nested under "config"
+      body: JSON.stringify({ config, niche, mode: speedMode }),
     });
 
     const data = await response.json();
-    hide('progress');
 
     if (!response.ok) {
       $('progress-message').textContent = data.detail;
-      show('progress');
       return;
     }
+
+    hide('progress');
 
     const list = $('scout-list');
     list.innerHTML = '';                     // clear any previous run
@@ -182,15 +185,14 @@ async function scout() {
 
     show('scout-results');
   } catch (err) {
-    hide('progress');
-    console.error(err);
+    $('progress-message').textContent = `Couldn't reach the server. ${err.message}`;
   }
 }
 
 // ---------------------------------------------------------------------------
 // GENERATE — the main event. This one STREAMS.
 // ---------------------------------------------------------------------------
-// Generating takes 30-60 seconds. Rather than freeze on a spinner, the server
+// Generating takes 20-50 seconds. Rather than freeze on a spinner, the server
 // pushes an update after each step and we render it the moment it lands.
 async function generate() {
   const config = getConfig();
@@ -207,6 +209,7 @@ async function generate() {
 
   hide('output');
   hide('research-section');
+  hide('scout-prompt');
   resetPipeline();
   show('progress');
   $('progress-message').textContent = 'Starting…';
@@ -219,6 +222,7 @@ async function generate() {
         config,
         topic,
         category: $('category-input').value.trim() || 'AI',
+        mode: speedMode,
       }),
     });
 
@@ -244,8 +248,7 @@ async function generate() {
       }
     }
   } catch (err) {
-    hide('progress');
-    console.error(err);
+    $('progress-message').textContent = `Couldn't reach the server. ${err.message}`;
   }
 }
 
@@ -258,7 +261,7 @@ function handleEvent(e) {
       break;
 
     case 'seo':
-      window.seoData = e;                    // stash it — needed at publish time
+      seoData = e;                           // stash it — needed at publish time
       break;
 
     case 'research': {
@@ -314,6 +317,7 @@ function handleEvent(e) {
 async function publish() {
   const config = getConfig();
   const status = $('publish-status');
+  status.className = '';
   status.textContent = 'Publishing…';
 
   try {
@@ -324,7 +328,7 @@ async function publish() {
         config,
         title: $('article-title').value,
         body_markdown: $('article-body').value,     // the user's edits win
-        meta_description: window.seoData?.meta_description || '',
+        meta_description: seoData?.meta_description || '',
         category: $('category-input').value.trim() || 'AI',
       }),
     });
@@ -332,40 +336,71 @@ async function publish() {
     const data = await response.json();
 
     if (response.ok) {
+      status.className = 'ok';
       status.innerHTML =
         `Draft created. <a href="${data.edit_url}" target="_blank" rel="noopener">Open in WordPress</a>`;
     } else {
+      status.className = 'bad';
       status.textContent = data.detail;
     }
   } catch (err) {
+    status.className = 'bad';
     status.textContent = `Couldn't reach the server. ${err.message}`;
   }
 }
 
 // ---------------------------------------------------------------------------
-// WIRE UP
+// WIRE UP THE CONTROLS
 // ---------------------------------------------------------------------------
+
+// Settings panel.
 $('settings-btn').onclick = () => {
   const panel = $('settings-panel');
   panel.hidden = !panel.hidden;
 };
-
 $('verify-btn').onclick = verify;
-$('scout-btn').onclick = scout;
+
+// The speed/quality toggle. Clicking one deactivates the other and sets the
+// mode that every subsequent request will carry.
+document.querySelectorAll('button.mode').forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll('button.mode').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    speedMode = btn.dataset.mode;
+    $('mode-explainer').textContent =
+      speedMode === 'fast'
+        ? 'Fast: about 20 seconds. Good for most topics.'
+        : 'Quality: slower, stronger model. Better with facts, numbers, and nuance.';
+  };
+});
+
+// Scout: the button opens the niche prompt; the prompt runs the scout.
+$('scout-btn').onclick = () => {
+  const panel = $('scout-prompt');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden) $('niche-input').focus();
+};
+$('scout-go-btn').onclick = scout;
+$('niche-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') scout();
+});
+
+// Generate.
 $('generate-btn').onclick = generate;
+$('topic-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') generate();
+});
+
+// Publish.
 $('publish-btn').onclick = publish;
 
+// Copy the LinkedIn post.
 $('copy-linkedin-btn').onclick = async () => {
   await navigator.clipboard.writeText($('linkedin-body').value);
   const btn = $('copy-linkedin-btn');
   btn.textContent = 'Copied';
   setTimeout(() => (btn.textContent = 'Copy'), 2000);
 };
-
-// Enter in the topic field starts a run.
-$('topic-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') generate();
-});
 
 // On load: restore saved keys, and open Settings if there are none.
 loadConfigIntoForm();

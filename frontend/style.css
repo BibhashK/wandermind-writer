@@ -24,16 +24,14 @@
   --stage-5: #f59e0b;   /* amber    — scoring */
   --stage-6: #10b981;   /* green    — linkedin */
 
-  /* --- Type on glass ----------------------------------------------------- */
   --text: #e8ecf7;
-  --text-dim: #8b96b8;
-  --text-faint: #5a6488;
+  --text-dim: #97a2c2;
+  --text-faint: #6b769a;
 
-  /* --- The glass itself -------------------------------------------------- */
   --glass: rgba(255, 255, 255, 0.045);
-  --glass-lit: rgba(255, 255, 255, 0.07);
+  --glass-lit: rgba(255, 255, 255, 0.075);
   --edge: rgba(255, 255, 255, 0.09);
-  --edge-lit: rgba(255, 255, 255, 0.16);
+  --edge-lit: rgba(255, 255, 255, 0.17);
 
   --pass: #34d399;
   --fail: #fb7185;
@@ -47,8 +45,8 @@
 
 /* --------------------------------------------------------------------------
    THE AURORA
-   Colour lives BEHIND the glass, not painted on it. Three slow-drifting
-   spectral blooms. This is what makes the frost read as actual glass.
+   Colour lives BEHIND the glass, not painted on it. This is what makes the
+   frost read as actual glass rather than a grey box.
    -------------------------------------------------------------------------- */
 body {
   min-height: 100vh;
@@ -82,7 +80,7 @@ body::before {
   100% { transform: translate(2%, -3%) scale(1.02); }
 }
 
-/* A fine grain over everything — kills the plastic-gradient look. */
+/* Fine grain — kills the plastic-gradient look. */
 body::after {
   content: '';
   position: fixed;
@@ -96,13 +94,14 @@ body::after {
 /* --------------------------------------------------------------------------
    GLASS
    -------------------------------------------------------------------------- */
-section, main, #settings-panel {
+section, main {
   max-width: 1340px;
   margin: 0 auto 24px;
 }
 
 #settings-panel,
 #topic-section,
+#scout-prompt,
 #scout-results,
 #progress,
 #research-section,
@@ -121,6 +120,7 @@ section, main, #settings-panel {
 /* The light-catch: a hairline highlight on the top edge, as real glass has. */
 #settings-panel::before,
 #topic-section::before,
+#scout-prompt::before,
 #article-panel::before,
 #seo-panel::before,
 #linkedin-panel::before,
@@ -158,7 +158,6 @@ header h1 {
   -webkit-text-fill-color: transparent;
 }
 
-/* An eyebrow that says what this thing is, in the vernacular of the newsroom. */
 header h1::after {
   content: 'the wire';
   display: block;
@@ -168,6 +167,12 @@ header h1::after {
   text-transform: uppercase;
   -webkit-text-fill-color: var(--text-faint);
   margin-top: 2px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* --------------------------------------------------------------------------
@@ -193,11 +198,29 @@ h3 {
 }
 
 /* --------------------------------------------------------------------------
+   LINKS
+   Browser-default blue is unreadable on this background. Everything gets the
+   cyan accent, with an underline so it reads as a link even without the colour.
+   -------------------------------------------------------------------------- */
+a {
+  color: var(--stage-1);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.4);
+  transition: color 0.15s, border-color 0.15s;
+}
+a:hover { color: #7ce8f7; border-bottom-color: currentColor; }
+a:focus-visible {
+  outline: 2px solid var(--stage-1);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* --------------------------------------------------------------------------
    CONTROLS
    -------------------------------------------------------------------------- */
 label {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-dim);
@@ -218,15 +241,13 @@ textarea {
   transition: border-color 0.18s, box-shadow 0.18s;
 }
 
-input:focus,
-textarea:focus {
+input:focus, textarea:focus {
   outline: none;
   border-color: var(--stage-1);
   box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
 }
 
-input::placeholder,
-textarea::placeholder { color: var(--text-faint); }
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
 
 textarea {
   font-family: var(--mono);
@@ -253,70 +274,189 @@ button:hover {
   border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-1px);
 }
-
 button:active { transform: translateY(0); }
+button:focus-visible { outline: 2px solid var(--stage-1); outline-offset: 2px; }
 
-button:focus-visible {
-  outline: 2px solid var(--stage-1);
-  outline-offset: 2px;
-}
-
-/* The two commit actions get the spectrum. Everything else stays quiet. */
-#generate-btn,
-#publish-btn {
+/* The commit actions get the spectrum. Everything else stays quiet. */
+#generate-btn, #publish-btn, #scout-go-btn {
   background: linear-gradient(100deg, var(--stage-2), var(--stage-3), var(--stage-4));
   border: none;
   font-weight: 600;
   color: #fff;
   box-shadow: 0 4px 20px rgba(168, 85, 247, 0.28);
 }
-
-#generate-btn:hover,
-#publish-btn:hover {
+#generate-btn:hover, #publish-btn:hover, #scout-go-btn:hover {
   box-shadow: 0 6px 28px rgba(168, 85, 247, 0.42);
+}
+
+.back-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 9px 16px;
+  border: 1px solid var(--edge);
+  border-bottom: 1px solid var(--edge);   /* override the global link underline */
+  border-radius: 9px;
+}
+.back-link:hover {
+  color: var(--text);
+  border-color: var(--edge-lit);
+  border-bottom-color: var(--edge-lit);
 }
 
 /* --------------------------------------------------------------------------
    SETTINGS
    -------------------------------------------------------------------------- */
-#settings-panel > p:first-of-type {
+.reassure-line {
   font-size: 12px;
   color: var(--text-faint);
-  margin-bottom: 22px;
-  padding-left: 11px;
+  margin-bottom: 16px;
+  padding-left: 12px;
   border-left: 2px solid var(--stage-6);
 }
 
-#verify-status {
+.settings-help {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 12px 16px;
+  margin-bottom: 22px;
+  background: rgba(34, 211, 238, 0.06);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 9px;
+}
+
+.field-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 5px;
+  font-weight: 400;
+}
+.field-hint a { border-bottom-color: transparent; }
+.field-hint a:hover { border-bottom-color: currentColor; }
+
+#verify-status, #publish-status {
   margin-top: 14px;
   font-family: var(--mono);
   font-size: 12px;
-  color: var(--stage-6);
+  color: var(--text-dim);
 }
+#verify-status.ok, #publish-status.ok { color: var(--stage-6); }
+#verify-status.bad, #publish-status.bad { color: var(--fail); }
 
 /* --------------------------------------------------------------------------
-   TOPIC BAR
+   TOPIC BAR + MODE TOGGLE
+   The toggle is a physical switch, not a dropdown. The active side glows in
+   its own colour: cyan for fast, magenta for quality.
    -------------------------------------------------------------------------- */
 #topic-section {
   display: grid;
-  grid-template-columns: 1fr 170px auto auto;
+  grid-template-columns: 1fr 130px auto auto auto;
   gap: 12px;
   align-items: center;
+  margin-bottom: 8px;
 }
 
 #topic-input { font-size: 15px; padding: 13px 16px; }
 
+.mode-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  padding: 3px;
+  gap: 3px;
+}
+
+button.mode {
+  padding: 7px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+button.mode:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: none;
+  color: var(--text-dim);
+}
+button.mode.active {
+  background: var(--glass-lit);
+  box-shadow: inset 0 0 0 1px var(--edge-lit);
+}
+#mode-fast.active {
+  color: var(--stage-1);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.4),
+              0 0 14px rgba(34, 211, 238, 0.18);
+}
+#mode-quality.active {
+  color: var(--stage-4);
+  box-shadow: inset 0 0 0 1px rgba(236, 72, 153, 0.4),
+              0 0 14px rgba(236, 72, 153, 0.18);
+}
+
+#mode-explainer {
+  max-width: 1340px;
+  margin: 0 auto 24px;
+  padding-left: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+/* --------------------------------------------------------------------------
+   SCOUT
+   -------------------------------------------------------------------------- */
+.scout-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+#niche-input { font-size: 15px; padding: 13px 16px; margin-top: 0; }
+
+#scout-list { display: grid; gap: 14px; }
+
+.topic-card {
+  background: var(--glass);
+  border: 1px solid var(--edge);
+  border-left: 2px solid var(--stage-3);
+  border-radius: 12px;
+  padding: 20px 22px;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.topic-card:hover {
+  background: var(--glass-lit);
+  border-left-color: var(--stage-4);
+  transform: translateX(3px);
+}
+.topic-card p { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+.topic-card strong {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  display: block;
+  margin-bottom: 2px;
+}
+.topic-card button { margin-top: 12px; }
+
 /* --------------------------------------------------------------------------
    THE PIPELINE — the signature.
-   A live wire. Light travels along it. Each stage locks in its own colour as
-   it completes, so the finished run leaves a spectrum behind it.
    -------------------------------------------------------------------------- */
 #progress { padding: 30px 32px; }
 
 .pipeline {
   display: flex;
   align-items: center;
-  gap: 0;
   margin-bottom: 20px;
 }
 
@@ -348,14 +488,12 @@ button:focus-visible {
   transition: color 0.4s;
 }
 
-/* The wire between stages. */
 .wire {
   flex: 1;
   height: 1px;
   background: var(--edge);
   position: relative;
-  margin: 0 6px;
-  margin-bottom: 24px;   /* sit level with the dots, above the labels */
+  margin: 0 6px 24px;      /* bottom margin sits it level with the dots */
   overflow: hidden;
 }
 
@@ -374,7 +512,7 @@ button:focus-visible {
   to   { transform: translateX(100%); }
 }
 
-/* A stage that's finished: its dot lights up and stays lit, in its own colour. */
+/* A finished stage: its dot lights up and stays lit, in its own colour. */
 .stage.done .stage-dot { border-color: transparent; }
 .stage.done .stage-label { color: var(--text-dim); }
 .wire.done { background: currentColor; opacity: 0.55; }
@@ -392,19 +530,15 @@ button:focus-visible {
 .wire[data-wire="4"].done { color: var(--stage-4); }
 .wire[data-wire="5"].done { color: var(--stage-5); }
 
-/* The stage currently running: pulses. */
 .stage.active .stage-dot {
   background: var(--text);
   border-color: var(--text);
   animation: pulse 1.3s ease-in-out infinite;
 }
-
-.stage.active .stage-label {
-  color: var(--text);
-}
+.stage.active .stage-label { color: var(--text); }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
   50%      { transform: scale(1.35); box-shadow: 0 0 0 7px rgba(255,255,255,0); }
 }
 
@@ -417,47 +551,6 @@ button:focus-visible {
 }
 
 /* --------------------------------------------------------------------------
-   SCOUT — topic cards
-   -------------------------------------------------------------------------- */
-#scout-list {
-  display: grid;
-  gap: 14px;
-}
-
-.topic-card {
-  background: var(--glass);
-  border: 1px solid var(--edge);
-  border-left: 2px solid var(--stage-3);
-  border-radius: 12px;
-  padding: 20px 22px;
-  transition: border-color 0.2s, background 0.2s, transform 0.2s;
-}
-
-.topic-card:hover {
-  background: var(--glass-lit);
-  border-left-color: var(--stage-4);
-  transform: translateX(3px);
-}
-
-.topic-card p {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-}
-
-.topic-card strong {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  display: block;
-  margin-bottom: 1px;
-}
-
-.topic-card button { margin-top: 12px; }
-
-/* --------------------------------------------------------------------------
    RESEARCH — a wire-service source list
    -------------------------------------------------------------------------- */
 #sources-list { display: grid; gap: 1px; }
@@ -468,22 +561,19 @@ button:focus-visible {
   background: rgba(0, 0, 0, 0.18);
   transition: background 0.16s, border-color 0.16s;
 }
-
 #sources-list div:hover {
   background: rgba(0, 0, 0, 0.34);
   border-left-color: var(--stage-1);
 }
-
 #sources-list a {
   color: var(--text-dim);
-  text-decoration: none;
   font-size: 13px;
+  border-bottom: none;
 }
-
 #sources-list a:hover { color: var(--stage-1); }
 
 /* --------------------------------------------------------------------------
-   OUTPUT — article left, intelligence right
+   OUTPUT
    -------------------------------------------------------------------------- */
 #output {
   display: grid;
@@ -498,23 +588,8 @@ button:focus-visible {
   padding: 14px 16px;
   margin-bottom: 14px;
 }
-
 #article-body { min-height: 560px; }
-
 #publish-btn { margin-top: 16px; }
-
-#publish-status {
-  margin-top: 12px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--stage-6);
-}
-
-#publish-status a {
-  color: var(--stage-1);
-  text-decoration: none;
-  border-bottom: 1px solid currentColor;
-}
 
 #side-panel {
   display: grid;
@@ -523,7 +598,6 @@ button:focus-visible {
   top: 24px;
 }
 
-/* --- SEO score ---------------------------------------------------------- */
 #seo-score {
   font-family: var(--serif);
   font-size: 15px;
@@ -543,7 +617,6 @@ button:focus-visible {
   max-height: 380px;
   overflow-y: auto;
 }
-
 #seo-checks li {
   font-family: var(--mono);
   font-size: 11px;
@@ -553,82 +626,25 @@ button:focus-visible {
   background: rgba(0, 0, 0, 0.16);
   border-left: 2px solid transparent;
 }
-
 #seo-checks li.pass { border-left-color: var(--pass); }
 #seo-checks li.fail { border-left-color: var(--fail); color: var(--text); }
 
-/* --- LinkedIn ----------------------------------------------------------- */
 #linkedin-body {
   min-height: 300px;
   font-family: var(--sans);
   font-size: 13px;
   line-height: 1.7;
 }
-
 #copy-linkedin-btn { margin-top: 12px; width: 100%; }
 
 /* --------------------------------------------------------------------------
-   SCROLLBARS — even these should feel considered
-   -------------------------------------------------------------------------- */
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--ink-600);
-  border-radius: 5px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--text-faint); background-clip: content-box; }
-
-/* --------------------------------------------------------------------------
-   QUALITY FLOOR
-   -------------------------------------------------------------------------- */
-@media (max-width: 1100px) {
-  #output { grid-template-columns: 1fr; }
-  #side-panel { position: static; }
-  #topic-section { grid-template-columns: 1fr; }
-  .stage-label { display: none; }
-  .wire { margin-bottom: 0; }
-}
-
-@media (max-width: 640px) {
-  body { padding: 24px 16px 64px; }
-  header { flex-direction: column; align-items: flex-start; gap: 14px; }
-  header h1 { font-size: 32px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* ==========================================================================
    THE GUIDE
    Numbered steps are used here because the content genuinely IS a sequence —
    you cannot do step 3 before step 1. The numbers carry information.
-   ========================================================================== */
-
+   -------------------------------------------------------------------------- */
 .guide { max-width: 780px; margin: 0 auto; }
-
-.back-link {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  text-decoration: none;
-  padding: 9px 16px;
-  border: 1px solid var(--edge);
-  border-radius: 9px;
-  transition: color 0.2s, border-color 0.2s;
-}
-.back-link:hover { color: var(--text); border-color: var(--edge-lit); }
-
 .guide-page header h1::after { content: 'ten minutes, once'; }
 
-/* --- Intro ---------------------------------------------------------------- */
 .guide-intro {
   background: var(--glass);
   backdrop-filter: blur(28px) saturate(150%);
@@ -662,7 +678,6 @@ button:focus-visible {
   color: var(--text-faint);
 }
 
-/* --- Steps ---------------------------------------------------------------- */
 .step {
   display: grid;
   grid-template-columns: 52px 1fr;
@@ -670,8 +685,6 @@ button:focus-visible {
   margin-bottom: 44px;
 }
 
-/* The step number carries its stage colour from the pipeline — the same
-   spectrum the user will see when the app runs. */
 .step-marker {
   width: 40px;
   height: 40px;
@@ -700,18 +713,9 @@ button:focus-visible {
   color: var(--text);
   margin-bottom: 6px;
 }
+.step-body h3 { font-size: 16px; color: var(--text); margin: 26px 0 8px; }
 
-.step-body h3 {
-  font-size: 16px;
-  color: var(--text);
-  margin: 26px 0 8px;
-}
-
-.what {
-  font-size: 14px;
-  color: var(--text-dim);
-  margin-bottom: 18px;
-}
+.what { font-size: 14px; color: var(--text-dim); margin-bottom: 18px; }
 
 .step-body ol { margin: 0 0 18px 18px; }
 .step-body li {
@@ -721,11 +725,7 @@ button:focus-visible {
   padding-left: 4px;
 }
 .step-body li strong { color: var(--text); }
-
 .step-body p { font-size: 14px; color: var(--text-dim); margin-bottom: 12px; }
-
-.step-body a { color: var(--stage-1); text-decoration: none; border-bottom: 1px solid rgba(34,211,238,0.35); }
-.step-body a:hover { border-bottom-color: var(--stage-1); }
 
 code {
   font-family: var(--mono);
@@ -736,7 +736,6 @@ code {
   color: var(--text);
 }
 
-/* --- Notes and fixes ------------------------------------------------------ */
 .note {
   font-size: 13px;
   color: var(--text-dim);
@@ -759,7 +758,6 @@ code {
 .fix p { margin: 0; font-size: 13px; }
 .fix strong { color: var(--text); }
 
-/* --- FAQ ------------------------------------------------------------------ */
 .faq {
   background: var(--glass);
   backdrop-filter: blur(28px);
@@ -768,19 +766,9 @@ code {
   padding: 32px;
   margin-bottom: 40px;
 }
-.faq > h2 {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 20px;
-}
+.faq > h2 { margin-bottom: 20px; }
 
-details {
-  border-bottom: 1px solid var(--edge);
-  padding: 14px 0;
-}
+details { border-bottom: 1px solid var(--edge); padding: 14px 0; }
 details:last-child { border-bottom: none; }
 
 summary {
@@ -797,11 +785,9 @@ summary::after {
   content: '+';
   font-family: var(--mono);
   color: var(--text-faint);
-  transition: transform 0.2s;
 }
 details[open] summary::after { content: '−'; }
 details[open] summary { color: var(--stage-1); }
-
 details p {
   font-size: 13px;
   color: var(--text-dim);
@@ -809,100 +795,59 @@ details p {
   padding-right: 24px;
 }
 
-/* --- CTA ------------------------------------------------------------------ */
 .footer-cta { text-align: center; margin-bottom: 60px; }
 .cta {
   display: inline-block;
   padding: 13px 32px;
   background: linear-gradient(100deg, var(--stage-2), var(--stage-3), var(--stage-4));
   border-radius: 9px;
+  border-bottom: none;
   color: #fff;
   font-weight: 600;
   font-size: 14px;
-  text-decoration: none;
   box-shadow: 0 4px 20px rgba(168,85,247,0.28);
 }
-.cta:hover { box-shadow: 0 6px 28px rgba(168,85,247,0.42); }
-
-/* --- Inline help in Settings ---------------------------------------------- */
-.field-hint {
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-top: 4px;
-  font-weight: 400;
-}
-.field-hint a { color: var(--stage-1); text-decoration: none; }
-.field-hint a:hover { text-decoration: underline; }
-
-.settings-help {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-bottom: 20px;
-}
-.settings-help a { color: var(--stage-1); }
-
-@media (max-width: 640px) {
-  .step { grid-template-columns: 1fr; gap: 12px; }
+.cta:hover {
+  color: #fff;
+  border-bottom: none;
+  box-shadow: 0 6px 28px rgba(168,85,247,0.42);
 }
 
 /* --------------------------------------------------------------------------
-   LINKS
-   Default browser blue is unreadable on this background. Every link in the app
-   gets the cyan accent, with a visible underline so it reads as a link even
-   before you notice the colour.
+   SCROLLBARS
    -------------------------------------------------------------------------- */
-a {
-  color: var(--stage-1);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.4);
-  transition: color 0.15s, border-color 0.15s;
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--ink-600);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); background-clip: content-box; }
+
+/* --------------------------------------------------------------------------
+   QUALITY FLOOR
+   -------------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  #output { grid-template-columns: 1fr; }
+  #side-panel { position: static; }
+  #topic-section { grid-template-columns: 1fr; }
+  .stage-label { display: none; }
+  .wire { margin-bottom: 0; }
+  .step { grid-template-columns: 1fr; gap: 12px; }
 }
 
-a:hover {
-  color: #7ce8f7;
-  border-bottom-color: currentColor;
+@media (max-width: 640px) {
+  body { padding: 24px 16px 64px; }
+  header { flex-direction: column; align-items: flex-start; gap: 14px; }
+  header h1 { font-size: 32px; }
+  .scout-input-row { grid-template-columns: 1fr; }
 }
 
-a:focus-visible {
-  outline: 2px solid var(--stage-1);
-  outline-offset: 2px;
-  border-radius: 2px;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
-
-/* The "Guide" button in the header is a button, not a body link. */
-.back-link,
-.back-link:hover {
-  border-bottom: none;
-}
-
-/* The setup-guide nudge — make it a proper callout, not a stray sentence. */
-.settings-help {
-  font-size: 13px;
-  color: var(--text-dim);
-  padding: 12px 16px;
-  margin-bottom: 22px;
-  background: rgba(34, 211, 238, 0.06);
-  border: 1px solid rgba(34, 211, 238, 0.18);
-  border-radius: 9px;
-}
-
-/* Field hints sit quietly under their input. */
-.field-hint {
-  display: block;
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-top: 5px;
-  font-weight: 400;
-}
-
-.field-hint a {
-  color: var(--stage-1);
-  border-bottom-color: transparent;
-}
-
-.field-hint a:hover {
-  border-bottom-color: currentColor;
-}
-
-/* The CTA at the foot of the guide is a button — no underline. */
-.cta, .cta:hover { border-bottom: none; }
