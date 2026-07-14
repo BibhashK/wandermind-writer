@@ -851,3 +851,32 @@ details p {
     transition: none !important;
   }
 }
+/* --------------------------------------------------------------------------
+   SETTINGS ACTIONS
+   The Clear button is deliberately quiet — it's an escape hatch, not a
+   primary action. But it must be findable, because on a shared machine it's
+   the difference between "convenient" and "careless".
+   -------------------------------------------------------------------------- */
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--edge);
+  color: var(--text-faint);
+}
+
+button.ghost:hover {
+  background: rgba(251, 113, 133, 0.08);
+  border-color: rgba(251, 113, 133, 0.35);
+  color: var(--fail);
+}
+
+.shared-machine-note {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+}

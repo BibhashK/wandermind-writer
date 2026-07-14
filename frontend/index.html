@@ -19,8 +19,8 @@
   <!-- SETTINGS: the BYOK credentials. Browser only. -->
   <section id="settings-panel" hidden>
     <h2>Your keys</h2>
-    <p class="reassure-line">Stored in your browser only. Sent with each request,
-      used once, then discarded. We have no database and keep no copy.</p>
+    <p class="reassure-line">Saved in this browser, on this machine. Sent with each
+      request and used once — never stored on our servers. We have no database.</p>
 
     <p class="settings-help">
       First time here? The <a href="/guide">setup guide</a> walks through all of
@@ -58,8 +58,14 @@
       </span>
     </label>
 
-    <button id="verify-btn">Verify &amp; save</button>
+    <div class="settings-actions">
+      <button id="verify-btn">Verify &amp; save</button>
+      <button id="clear-btn" class="ghost">Clear my keys</button>
+    </div>
     <p id="verify-status"></p>
+    <p class="shared-machine-note">
+      On a shared computer? Clear your keys when you're done.
+    </p>
   </section>
 
   <!-- TOPIC BAR -->

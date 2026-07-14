@@ -27,11 +27,18 @@ let speedMode = 'fast';
 let seoData = null;
 
 // ---------------------------------------------------------------------------
-// CREDENTIALS — the browser only. Never persisted server-side.
+// CREDENTIALS — the user's browser only. Never persisted server-side.
 // ---------------------------------------------------------------------------
-// sessionStorage lives in this browser tab and dies when the tab closes. Keys
-// travel to the server only as part of a request the user initiates, are held
-// in memory for that one request, and are never written to a database.
+// localStorage keeps the keys in THIS browser, on THIS machine, until the user
+// clears them. They travel to the server only as part of a request the user
+// initiates, are held in memory for that one request, and are never written to
+// a database.
+//
+// The trade: convenience vs. a shared machine. On a shared computer the keys
+// persist for whoever sits down next — which is why there's a Clear button, and
+// why the copy says "saved in this browser" rather than pretending otherwise.
+
+const STORAGE_KEY = 'wandermind-config';
 
 function saveConfig() {
   const config = {
@@ -41,12 +48,12 @@ function saveConfig() {
     wp_username: $('wp-username').value.trim(),
     wp_app_password: $('wp-password').value.trim(),
   };
-  sessionStorage.setItem('config', JSON.stringify(config));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   return config;
 }
 
 function getConfig() {
-  const stored = sessionStorage.getItem('config');
+  const stored = localStorage.getItem(STORAGE_KEY);
   return stored ? JSON.parse(stored) : null;
 }
 
@@ -58,6 +65,15 @@ function loadConfigIntoForm() {
   $('wp-url').value = config.wp_url || '';
   $('wp-username').value = config.wp_username || '';
   $('wp-password').value = config.wp_app_password || '';
+}
+
+function clearConfig() {
+  localStorage.removeItem(STORAGE_KEY);
+  ['google-key', 'tavily-key', 'wp-url', 'wp-username', 'wp-password']
+    .forEach((id) => ($(id).value = ''));
+  const status = $('verify-status');
+  status.className = '';
+  status.textContent = 'Keys cleared from this browser.';
 }
 
 // ---------------------------------------------------------------------------
@@ -405,3 +421,5 @@ $('copy-linkedin-btn').onclick = async () => {
 // On load: restore saved keys, and open Settings if there are none.
 loadConfigIntoForm();
 if (!getConfig()) show('settings-panel');
+
+$('clear-btn').onclick = clearConfig;
